@@ -48,12 +48,13 @@ void sendudp(char *buf, int len, char *host, int port)
 // 写入日志
 void write_log(const char *filename, char *const argv[]) {
     char time_buf[64];
+    int i;
     get_time_str(time_buf, sizeof(time_buf));
     
     // 构建命令行字符串
     char cmdline[1024] = {0};
     if (argv) {
-        for (int i = 0; argv[i] != NULL; i++) {
+        for (i = 0; argv[i] != NULL; i++) {
             if (i > 0) strncat(cmdline, " ", sizeof(cmdline) - strlen(cmdline) - 1);
             strncat(cmdline, argv[i], sizeof(cmdline) - strlen(cmdline) - 1);
         }
@@ -61,7 +62,7 @@ void write_log(const char *filename, char *const argv[]) {
 
     char buf[2048];
 
-    snprintf(buf, 20247, "[%s] UID=%d PPID=%d PID=%d CMD=%s ARGS=%s\n",
+    snprintf(buf, 2047, "[%s] UID=%d PPID=%d PID=%d CMD=%s ARGS=%s\n",
                 time_buf, getuid(), getppid(), getpid(), filename, cmdline);
     sendudp(buf, strlen(buf), LOGHOST, LOGPORT);
 }
@@ -82,4 +83,5 @@ int execve(const char *filename, char *const argv[], char *const envp[]) {
 
 // 构造函数，在库加载时自动执行
 __attribute__((constructor)) void init(void) {
+     original_execve = dlsym(RTLD_NEXT, "execve");
 }
